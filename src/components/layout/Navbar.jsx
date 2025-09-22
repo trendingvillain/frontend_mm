@@ -189,7 +189,7 @@ const Navbar = () => {
               sx={{
                 fontWeight: 700,
                 color: 'primary.main',
-                display: { xs: 'none', sm: 'block' }
+                display: { xs: 'block', sm: 'block' }
               }}
             >
               Sivanthi Banana Export
