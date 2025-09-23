@@ -44,6 +44,7 @@ const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all"); // 🟢 New state for status filter
   const [loading, setLoading] = useState(true);
   const [statusDialog, setStatusDialog] = useState(false);
   const [invoiceDialog, setInvoiceDialog] = useState(false);
@@ -69,7 +70,7 @@ const AdminOrders = () => {
 
   useEffect(() => {
     filterOrders();
-  }, [searchTerm, orders]);
+  }, [searchTerm, orders, statusFilter]); // 🟢 Added statusFilter to dependency array
 
   const loadOrders = async () => {
     try {
@@ -85,17 +86,19 @@ const AdminOrders = () => {
   };
 
   const filterOrders = () => {
-    if (searchTerm) {
-      const filtered = orders.filter(
-        (order) =>
-          order.order_id.toString().includes(searchTerm) ||
-          order.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          order.status.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredOrders(filtered);
-    } else {
-      setFilteredOrders(orders);
-    }
+    const filtered = orders.filter((order) => {
+      const matchesSearch =
+        searchTerm === "" ||
+        order.order_id.toString().includes(searchTerm) ||
+        order.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.status.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "all" || order.status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+    setFilteredOrders(filtered);
   };
 
   const handleOpenStatusDialog = (order) => {
@@ -109,7 +112,10 @@ const AdminOrders = () => {
 
   const handleOpenInvoiceDialog = (order) => {
     setSelectedOrder(order);
-    const nextInvoiceNumber = `INV-${String(orders.length + 1).padStart(3, "0")}`;
+    const nextInvoiceNumber = `INV-${String(orders.length + 1).padStart(
+      3,
+      "0"
+    )}`;
     setInvoiceForm({
       invoice_number: nextInvoiceNumber,
       items: order.items.map((item) => ({
@@ -193,7 +199,10 @@ const AdminOrders = () => {
   // ✅ Handle invoice create
   const handleInvoiceCreate = async () => {
     try {
-      const response = await createOrderInvoice(selectedOrder.order_id, invoiceForm);
+      const response = await createOrderInvoice(
+        selectedOrder.order_id,
+        invoiceForm
+      );
       if (response.data.success) {
         setSnackbar({
           open: true,
@@ -241,21 +250,60 @@ const AdminOrders = () => {
         Order Management
       </Typography>
 
-      {/* Search */}
+      {/* Search and Status Filter */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <TextField
-          placeholder="Search by order ID, customer name, or status..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search />
-              </InputAdornment>
-            ),
-          }}
-          sx={{ minWidth: 400 }}
-        />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+          <TextField
+            placeholder="Search by order ID, customer name, or status..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ flexGrow: 1 }}
+          />
+          <RadioGroup
+            row
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            sx={{ gap: 2 }}
+          >
+            <FormControlLabel
+              value="all"
+              control={<Radio />}
+              label="All"
+              sx={{ m: 0 }}
+            />
+            <FormControlLabel
+              value="pending"
+              control={<Radio />}
+              label="Pending"
+              sx={{ m: 0 }}
+            />
+            <FormControlLabel
+              value="confirmed"
+              control={<Radio />}
+              label="Confirmed"
+              sx={{ m: 0 }}
+            />
+            <FormControlLabel
+              value="completed"
+              control={<Radio />}
+              label="Completed"
+              sx={{ m: 0 }}
+            />
+            <FormControlLabel
+              value="cancelled"
+              control={<Radio />}
+              label="Cancelled"
+              sx={{ m: 0 }}
+            />
+          </RadioGroup>
+        </Box>
       </Paper>
 
       {/* Orders Table */}
@@ -281,7 +329,9 @@ const AdminOrders = () => {
                 <TableCell>{order.user_name}</TableCell>
                 <TableCell>{order.user_address}</TableCell>
                 <TableCell>{order.user_phone}</TableCell>
-                <TableCell>{new Date(order.delivery_date).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  {new Date(order.delivery_date).toLocaleDateString()}
+                </TableCell>
                 <TableCell>
                   <Chip
                     label={order.status}
@@ -299,7 +349,11 @@ const AdminOrders = () => {
                 </TableCell>
                 <TableCell>
                   {order.invoice_number ? (
-                    <Chip label={order.invoice_number} color="success" size="small" />
+                    <Chip
+                      label={order.invoice_number}
+                      color="success"
+                      size="small"
+                    />
                   ) : (
                     <Typography variant="body2" color="text.secondary">
                       No Invoice
@@ -309,7 +363,10 @@ const AdminOrders = () => {
                 <TableCell>
                   <Box sx={{ display: "flex", gap: 1 }}>
                     <Tooltip title="Update Status">
-                      <IconButton size="small" onClick={() => handleOpenStatusDialog(order)}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleOpenStatusDialog(order)}
+                      >
                         <Edit />
                       </IconButton>
                     </Tooltip>
@@ -328,7 +385,9 @@ const AdminOrders = () => {
                       <IconButton
                         size="small"
                         color="secondary"
-                        onClick={() => navigate(`/admin/orders/${order.order_id}`)}
+                        onClick={() =>
+                          navigate(`/admin/orders/${order.order_id}`)
+                        }
                       >
                         <Visibility />
                       </IconButton>
@@ -350,7 +409,12 @@ const AdminOrders = () => {
       )}
 
       {/* Status Update Dialog */}
-      <Dialog open={statusDialog} onClose={() => setStatusDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={statusDialog}
+        onClose={() => setStatusDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Update Order Status</DialogTitle>
         <DialogContent>
           <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -361,7 +425,9 @@ const AdminOrders = () => {
                   select
                   label="Status"
                   value={statusForm.status}
-                  onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}
+                  onChange={(e) =>
+                    setStatusForm({ ...statusForm, status: e.target.value })
+                  }
                 >
                   <MenuItem value="pending">Pending</MenuItem>
                   <MenuItem value="confirmed">Confirmed</MenuItem>
@@ -373,7 +439,9 @@ const AdminOrders = () => {
                 <DatePicker
                   label="Delivery Date"
                   value={statusForm.delivery_date}
-                  onChange={(newValue) => setStatusForm({ ...statusForm, delivery_date: newValue })}
+                  onChange={(newValue) =>
+                    setStatusForm({ ...statusForm, delivery_date: newValue })
+                  }
                   sx={{ width: "100%" }}
                 />
               </Grid>
@@ -389,7 +457,12 @@ const AdminOrders = () => {
       </Dialog>
 
       {/* Invoice Creation Dialog */}
-      <Dialog open={invoiceDialog} onClose={() => setInvoiceDialog(false)} maxWidth="md" fullWidth>
+      <Dialog
+        open={invoiceDialog}
+        onClose={() => setInvoiceDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>Create Invoice</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -399,7 +472,10 @@ const AdminOrders = () => {
                 label="Invoice Number"
                 value={invoiceForm.invoice_number}
                 onChange={(e) =>
-                  setInvoiceForm({ ...invoiceForm, invoice_number: e.target.value })
+                  setInvoiceForm({
+                    ...invoiceForm,
+                    invoice_number: e.target.value,
+                  })
                 }
                 required
               />
@@ -433,7 +509,11 @@ const AdminOrders = () => {
                         type="number"
                         value={item.quantity}
                         onChange={(e) =>
-                          updateInvoiceItem(index, "quantity", parseInt(e.target.value) || 0)
+                          updateInvoiceItem(
+                            index,
+                            "quantity",
+                            parseInt(e.target.value) || 0
+                          )
                         }
                       />
                     </Grid>
@@ -444,7 +524,11 @@ const AdminOrders = () => {
                         type="number"
                         value={item.weight}
                         onChange={(e) =>
-                          updateInvoiceItem(index, "weight", parseFloat(e.target.value) || 0)
+                          updateInvoiceItem(
+                            index,
+                            "weight",
+                            parseFloat(e.target.value) || 0
+                          )
                         }
                       />
                     </Grid>
@@ -456,7 +540,11 @@ const AdminOrders = () => {
                         step="0.01"
                         value={item.price}
                         onChange={(e) =>
-                          updateInvoiceItem(index, "price", parseFloat(e.target.value) || 0)
+                          updateInvoiceItem(
+                            index,
+                            "price",
+                            parseFloat(e.target.value) || 0
+                          )
                         }
                       />
                     </Grid>
@@ -466,8 +554,16 @@ const AdminOrders = () => {
                         value={item.calcType}
                         onChange={(e) => handleCalcTypeChange(index, e.target.value)}
                       >
-                        <FormControlLabel value="quantity" control={<Radio />} label="Qty" />
-                        <FormControlLabel value="weight" control={<Radio />} label="Wt" />
+                        <FormControlLabel
+                          value="quantity"
+                          control={<Radio />}
+                          label="Qty"
+                        />
+                        <FormControlLabel
+                          value="weight"
+                          control={<Radio />}
+                          label="Wt"
+                        />
                       </RadioGroup>
                     </Grid>
                     <Grid item xs={12} sm={1}>
