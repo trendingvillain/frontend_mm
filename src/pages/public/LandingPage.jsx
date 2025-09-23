@@ -6,6 +6,7 @@ import { MapPin, Phone, Mail, Store, Package, Sprout, X } from 'lucide-react';
 
 // API functions imported from the second code block
 import { fetchProducts, submitInquiryPublic, fetchGallery } from '../../config/api';
+import Gallery from './gallery';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -112,50 +113,8 @@ const LandingPage = ({ isAuthenticated }) => {
       {/* --- */}
 
       {/* Gallery Section */}
-      <section className="py-16 md:py-24">
-        <div className="container mx-auto px-4">
-          <h2 className="text-4xl md:text-5xl font-bold text-center mb-12 text-gray-900">
-            Our Gallery
-          </h2>
-          {gallery.length > 0 ? (
-            <div className="columns-2 md:columns-3 lg:columns-4 gap-4">
-              {gallery.map((item) => (
-                <div
-                  key={item.id}
-                  className="mb-4 break-inside-avoid-column relative group cursor-pointer"
-                  onClick={() => setSelectedImage(`${API_BASE_URL}${item.image_url}`)}
-                >
-                  <img
-                    src={`${API_BASE_URL}${item.image_url}`}
-                    alt="Gallery"
-                    className="w-full rounded-xl object-cover transition-transform duration-300 transform group-hover:scale-105 group-hover:shadow-lg"
-                  />
-                  <div className="absolute inset-0 bg-black/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-gray-500">No gallery images available.</p>
-          )}
-        </div>
-      </section>
-
-      {/* Lightbox Dialog */}
-      {selectedImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4">
-          <div className="relative max-w-4xl max-h-full overflow-y-auto">
-            <button
-              onClick={handleCloseDialog}
-              className="absolute top-4 right-4 text-white z-50 p-2 rounded-full bg-gray-900 bg-opacity-50 hover:bg-opacity-75 transition"
-            >
-              <X size={24} />
-            </button>
-            <img src={selectedImage} alt="Full-size gallery" className="w-full h-full object-contain rounded-lg" />
-          </div>
-        </div>
-      )}
-
       {/* --- */}
+      <Gallery />
 
       {/* Product Showcase */}
       <section className="bg-gray-50 py-16 md:py-24">
