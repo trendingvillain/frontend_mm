@@ -44,7 +44,7 @@ const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all"); // 🟢 New state for status filter
+  const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [statusDialog, setStatusDialog] = useState(false);
   const [invoiceDialog, setInvoiceDialog] = useState(false);
@@ -70,7 +70,7 @@ const AdminOrders = () => {
 
   useEffect(() => {
     filterOrders();
-  }, [searchTerm, orders, statusFilter]); // 🟢 Added statusFilter to dependency array
+  }, [searchTerm, orders, statusFilter]);
 
   const loadOrders = async () => {
     try {
@@ -91,6 +91,7 @@ const AdminOrders = () => {
         searchTerm === "" ||
         order.order_id.toString().includes(searchTerm) ||
         order.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.user_phone.includes(searchTerm) || // Added phone number to search
         order.status.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus =
@@ -157,12 +158,10 @@ const AdminOrders = () => {
     }
   };
 
-  // ✅ Update invoice item
   const updateInvoiceItem = (index, field, value) => {
     const updatedItems = [...invoiceForm.items];
     updatedItems[index][field] = value;
 
-    // Recalculate subtotal
     if (updatedItems[index].calcType === "quantity") {
       updatedItems[index].subtotal =
         updatedItems[index].quantity * updatedItems[index].price;
@@ -171,18 +170,15 @@ const AdminOrders = () => {
         updatedItems[index].weight * updatedItems[index].price;
     }
 
-    // Recalculate total
     const newTotal = updatedItems.reduce((sum, item) => sum + item.subtotal, 0);
 
     setInvoiceForm({ ...invoiceForm, items: updatedItems, total: newTotal });
   };
 
-  // ✅ Handle calc type change
   const handleCalcTypeChange = (index, value) => {
     const updatedItems = [...invoiceForm.items];
     updatedItems[index].calcType = value;
 
-    // Recalculate subtotal
     if (value === "quantity") {
       updatedItems[index].subtotal =
         updatedItems[index].quantity * updatedItems[index].price;
@@ -196,7 +192,6 @@ const AdminOrders = () => {
     setInvoiceForm({ ...invoiceForm, items: updatedItems, total: newTotal });
   };
 
-  // ✅ Handle invoice create
   const handleInvoiceCreate = async () => {
     try {
       const response = await createOrderInvoice(
@@ -266,43 +261,20 @@ const AdminOrders = () => {
             }}
             sx={{ flexGrow: 1 }}
           />
-          <RadioGroup
-            row
+          {/* Status filter with select dropdown */}
+          <TextField
+            select
+            label="Status"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            sx={{ gap: 2 }}
+            sx={{ width: 200 }}
           >
-            <FormControlLabel
-              value="all"
-              control={<Radio />}
-              label="All"
-              sx={{ m: 0 }}
-            />
-            <FormControlLabel
-              value="pending"
-              control={<Radio />}
-              label="Pending"
-              sx={{ m: 0 }}
-            />
-            <FormControlLabel
-              value="confirmed"
-              control={<Radio />}
-              label="Confirmed"
-              sx={{ m: 0 }}
-            />
-            <FormControlLabel
-              value="completed"
-              control={<Radio />}
-              label="Completed"
-              sx={{ m: 0 }}
-            />
-            <FormControlLabel
-              value="cancelled"
-              control={<Radio />}
-              label="Cancelled"
-              sx={{ m: 0 }}
-            />
-          </RadioGroup>
+            <MenuItem value="all">All</MenuItem>
+            <MenuItem value="pending">Pending</MenuItem>
+            <MenuItem value="confirmed">Confirmed</MenuItem>
+            <MenuItem value="completed">Completed</MenuItem>
+            <MenuItem value="cancelled">Cancelled</MenuItem>
+          </TextField>
         </Box>
       </Paper>
 
