@@ -66,7 +66,8 @@ const AdminInquiries = () => {
       filtered = filtered.filter(inquiry =>
         inquiry.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         inquiry.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        inquiry.message.toLowerCase().includes(searchTerm.toLowerCase())
+        inquiry.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        inquiry.phone?.includes(searchTerm) // Added phone number to search
       );
     }
 
