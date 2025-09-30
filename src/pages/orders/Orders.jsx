@@ -115,7 +115,7 @@ const Orders = () => {
 
       <Grid container spacing={4}>
         {orders.map((order) => (
-          <Grid item xs={12} md={6} lg={4} key={order.id}>
+          <Grid item xs={12} md={6} lg={4} key={order.order_code}>
             <Card 
               sx={{ 
                 borderRadius: 0, 
