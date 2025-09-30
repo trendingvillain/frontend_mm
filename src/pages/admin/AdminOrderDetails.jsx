@@ -1,12 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
-  Container,
   Typography,
-  Card,
-  CardContent,
-  Grid,
-  Chip,
-  Button,
   Box,
   Paper,
   Table,
@@ -15,326 +9,567 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  CircularProgress,
-  useTheme,
-} from '@mui/material';
-import { ArrowBack, Receipt, Print } from '@mui/icons-material';
-import { useParams, useNavigate } from 'react-router-dom';
-import { fetchAdminOrderById } from '../../config/api';
-import logo from './../../logo.png';
+  TextField,
+  InputAdornment,
+  Chip,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Grid,
+  MenuItem,
+  Snackbar,
+  Alert,
+  IconButton,
+  Tooltip,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+} from "@mui/material";
+import { Search, Edit, Receipt, Visibility } from "@mui/icons-material";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import {
+  fetchAllOrders,
+  updateOrderStatus,
+  createOrderInvoice,
+} from "../../config/api";
+import dayjs from "dayjs";
+import { useNavigate } from "react-router-dom";
 
-// --- THEME CONSTANTS ---
-const ACCENT_GOLD = '#BF8A00'; 
-const PRIMARY_BLACK = '#121212'; 
-const DEEP_GRAY = '#F5F5F5';
-// --- END THEME CONSTANTS ---
-
-// Print styles for hiding non-print content and showing minimal header
-const PrintStyles = () => (
-  <style>{`
-    @media print {
-      nav, footer, .navbar, .no-print {
-        display: none !important;
-      }
-      #print-header {
-        display: flex !important;
-        align-items: center;
-        justify-content: flex-start;
-        border-bottom: 2px solid ${ACCENT_GOLD};
-        padding: 10px 20px;
-        position: fixed;
-        top: 0;
-        width: 100%;
-        background: white;
-        z-index: 10000;
-      }
-      body {
-        padding-top: 60px;
-      }
-    }
-  `}</style>
-);
-
-const AdminOrderDetail = () => {
-  const { id } = useParams();
+const AdminOrders = () => {
   const navigate = useNavigate();
-  const theme = useTheme();
-  const [order, setOrder] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [statusDialog, setStatusDialog] = useState(false);
+  const [invoiceDialog, setInvoiceDialog] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+  const [statusForm, setStatusForm] = useState({
+    status: "",
+    delivery_date: dayjs(),
+  });
+  const [invoiceForm, setInvoiceForm] = useState({
+    invoice_number: "",
+    items: [],
+    total: 0,
+  });
 
   useEffect(() => {
-    loadOrder();
-  }, [id]);
+    loadOrders();
+  }, []);
 
-  const loadOrder = async () => {
+  useEffect(() => {
+    filterOrders();
+  }, [searchTerm, orders, statusFilter]);
+
+  const loadOrders = async () => {
     try {
-      const response = await fetchAdminOrderById(id);
+      const response = await fetchAllOrders();
       if (response.data.success) {
-        setOrder(response.data.order);
+        setOrders(response.data.orders);
       }
     } catch (error) {
-      console.error('Error loading order:', error);
+      console.error("Error loading orders:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed':
-        return 'success';
-      case 'confirmed':
-        return 'info';
-      case 'pending':
-        return 'warning';
-      case 'cancelled':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-  
-  // Helper to safely calculate item total
-  const getItemTotal = (item) => {
-    const price = Number(item.price);
-    const quantity = Number(item.quantity);
-    return !isNaN(price) && !isNaN(quantity) ? (price * quantity).toFixed(2) : '0.00';
+  const filterOrders = () => {
+    const filtered = orders.filter((order) => {
+      const matchesSearch =
+        searchTerm === "" ||
+        order.order_id.toString().includes(searchTerm) ||
+        order.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.user_phone.includes(searchTerm) || // Added phone number to search
+        order.status.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "all" || order.status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+    setFilteredOrders(filtered);
   };
 
-  // Print handler
-  const handlePrintPage = () => {
-    window.print();
+  const handleOpenStatusDialog = (order) => {
+    setSelectedOrder(order);
+    setStatusForm({
+      status: order.status,
+      delivery_date: dayjs(order.delivery_date),
+    });
+    setStatusDialog(true);
+  };
+
+  const handleOpenInvoiceDialog = (order) => {
+    setSelectedOrder(order);
+    const nextInvoiceNumber = `INV-${String(orders.length + 1).padStart(
+      3,
+      "0"
+    )}`;
+    setInvoiceForm({
+      invoice_number: nextInvoiceNumber,
+      items: order.items.map((item) => ({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        weight: item.weight || 0,
+        price: 0,
+        calcType: "quantity",
+        subtotal: 0,
+      })),
+      total: 0,
+    });
+    setInvoiceDialog(true);
+  };
+
+  const handleStatusUpdate = async () => {
+    try {
+      const response = await updateOrderStatus(selectedOrder.order_id, {
+        status: statusForm.status,
+        delivery_date: statusForm.delivery_date.format("YYYY-MM-DD"),
+      });
+
+      if (response.data.success) {
+        setSnackbar({
+          open: true,
+          message: "Order status updated successfully!",
+          severity: "success",
+        });
+        setStatusDialog(false);
+        loadOrders();
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Error updating order status",
+        severity: "error",
+      });
+    }
+  };
+
+  const updateInvoiceItem = (index, field, value) => {
+    const updatedItems = [...invoiceForm.items];
+    updatedItems[index][field] = value;
+
+    if (updatedItems[index].calcType === "quantity") {
+      updatedItems[index].subtotal =
+        updatedItems[index].quantity * updatedItems[index].price;
+    } else {
+      updatedItems[index].subtotal =
+        updatedItems[index].weight * updatedItems[index].price;
+    }
+
+    const newTotal = updatedItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+    setInvoiceForm({ ...invoiceForm, items: updatedItems, total: newTotal });
+  };
+
+  const handleCalcTypeChange = (index, value) => {
+    const updatedItems = [...invoiceForm.items];
+    updatedItems[index].calcType = value;
+
+    if (value === "quantity") {
+      updatedItems[index].subtotal =
+        updatedItems[index].quantity * updatedItems[index].price;
+    } else {
+      updatedItems[index].subtotal =
+        updatedItems[index].weight * updatedItems[index].price;
+    }
+
+    const newTotal = updatedItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+    setInvoiceForm({ ...invoiceForm, items: updatedItems, total: newTotal });
+  };
+
+  const handleInvoiceCreate = async () => {
+    try {
+      const response = await createOrderInvoice(
+        selectedOrder.order_id,
+        invoiceForm
+      );
+      if (response.data.success) {
+        setSnackbar({
+          open: true,
+          message: "Invoice created successfully!",
+          severity: "success",
+        });
+        setInvoiceDialog(false);
+        loadOrders();
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Error creating invoice",
+        severity: "error",
+      });
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "completed":
+        return "success";
+      case "confirmed":
+        return "info";
+      case "pending":
+        return "warning";
+      case "cancelled":
+        return "error";
+      default:
+        return "default";
+    }
   };
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 8, textAlign: 'center' }}>
-        <CircularProgress size={60} sx={{ my: 4, color: ACCENT_GOLD }} />
-        <Typography variant="h6" sx={{ color: PRIMARY_BLACK }}>Loading order manifest...</Typography>
-      </Container>
+      <Box>
+        <Typography>Loading orders...</Typography>
+      </Box>
     );
   }
-
-  if (!order) {
-    return (
-      <Container maxWidth="lg" sx={{ mt: 8, textAlign: 'center' }}>
-        <Typography variant="h6" color="error" sx={{ borderRadius: 0 }}>Order not found. Invalid Transaction ID.</Typography>
-        <Button 
-            startIcon={<ArrowBack />} 
-            onClick={() => navigate('/admin/orders')} 
-            sx={{ mt: 2, borderRadius: 0, color: PRIMARY_BLACK, borderColor: PRIMARY_BLACK }} 
-            variant="outlined"
-        >
-            Back to Orders
-        </Button>
-      </Container>
-    );
-  }
-
-  const hasInvoice = !!order.invoice;
 
   return (
-    <>
-      {/* Inject print styles */}
-      <PrintStyles />
+    <Box>
+      <Typography variant="h4" gutterBottom sx={{ fontWeight: 600 }}>
+        Order Management
+      </Typography>
 
-      {/* Minimal print header with logo and name, hidden normally */}
-      <Box 
-        id="print-header" 
-        sx={{ display: 'none', mb: 4, px: 2, py: 1, bgcolor: 'white', borderBottom: `2px solid ${ACCENT_GOLD}` }}
-      >
-        <img src={logo} alt="Logo" style={{ height: 40, marginRight: 12 }} />
-        <Typography variant="h6" sx={{ fontWeight: 'bold', color: PRIMARY_BLACK }}>
-          Sivanthi Banana Export
-        </Typography>
-      </Box>
-
-      <Container maxWidth="lg" sx={{ mt: 8, mb: 4 }}>
-        
-        {/* Header and Actions */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
-          <Typography variant="h4" sx={{ fontWeight: 800, color: PRIMARY_BLACK, textTransform: 'uppercase' }}>
-            Admin Log: Transaction #{order.id}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            
-            <Button 
-              startIcon={<ArrowBack />} 
-              onClick={() => navigate('/admin/orders')} 
-              sx={{ borderRadius: 0, color: PRIMARY_BLACK, borderColor: PRIMARY_BLACK, fontWeight: 700 }} 
-              variant="outlined"
-              className="no-print"
-            >
-              Back to Orders
-            </Button>
-            
-            {hasInvoice && (
-              <Button 
-                startIcon={<Print />} 
-                onClick={handlePrintPage} 
-                sx={{ 
-                    borderRadius: 0, 
-                    bgcolor: ACCENT_GOLD, 
-                    color: PRIMARY_BLACK, 
-                    fontWeight: 700,
-                    '&:hover': { bgcolor: PRIMARY_BLACK, color: ACCENT_GOLD }
-                }} 
-                variant="contained"
-                className="no-print"
-              >
-                Print Transaction Log
-              </Button>
-            )}
-          </Box>
+      {/* Search and Status Filter */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+          <TextField
+            placeholder="Search by order ID, customer name, or status..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ flexGrow: 1 }}
+          />
+          {/* Status filter with select dropdown */}
+          <TextField
+            select
+            label="Status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            sx={{ width: 200 }}
+          >
+            <MenuItem value="all">All</MenuItem>
+            <MenuItem value="pending">Pending</MenuItem>
+            <MenuItem value="confirmed">Confirmed</MenuItem>
+            <MenuItem value="completed">Completed</MenuItem>
+            <MenuItem value="cancelled">Cancelled</MenuItem>
+          </TextField>
         </Box>
+      </Paper>
 
-        <Grid container spacing={4}>
-          {/* Client & Logistics */}
-          <Grid item xs={12} md={6}>
-            <Card sx={{ borderRadius: 0, border: `1px solid ${PRIMARY_BLACK}50` }}>
-              <CardContent sx={{ bgcolor: DEEP_GRAY }}>
-                <Typography variant="h5" gutterBottom sx={{ fontWeight: 800, color: PRIMARY_BLACK, textTransform: 'uppercase', borderBottom: `2px solid ${ACCENT_GOLD}`, pb: 1, mb: 2 }}>
-                  Client & Logistics
-                </Typography>
-                
-                <Box sx={{ mb: 1 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>CLIENT NAME</Typography>
-                  <Typography sx={{ fontWeight: 500, color: PRIMARY_BLACK }}>
-                    {order.user_name || "N/A"}
-                  </Typography>
-                </Box>
-                <Box sx={{ mb: 1 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>INITIATION DATE</Typography>
-                  <Typography sx={{ fontWeight: 500, color: PRIMARY_BLACK }}>
-                    {new Date(order.created_at).toLocaleDateString()}
-                  </Typography>
-                </Box>
-                <Box sx={{ mb: 1 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>TARGET DELIVERY</Typography>
-                  <Typography sx={{ fontWeight: 700, color: ACCENT_GOLD }}>
-                    {new Date(order.delivery_date).toLocaleDateString()}
-                  </Typography>
-                </Box>
-                <Box sx={{ pt: 2, mt: 2, borderTop: `1px dashed ${PRIMARY_BLACK}30` }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mr: 1 }}>STATUS:</Typography>
-                  <Chip 
-                    label={order.status.toUpperCase()} 
+      {/* Orders Table */}
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Order ID</TableCell>
+              <TableCell>Customer</TableCell>
+              <TableCell>Address</TableCell>
+              <TableCell>Phone</TableCell>
+              <TableCell>Delivery Date</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Items</TableCell>
+              <TableCell>Invoice</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredOrders.map((order) => (
+              <TableRow key={order.order_id}>
+                <TableCell>#{order.order_id}</TableCell>
+                <TableCell>{order.user_name}</TableCell>
+                <TableCell>{order.user_address}</TableCell>
+                <TableCell>{order.user_phone}</TableCell>
+                <TableCell>
+                  {new Date(order.delivery_date).toLocaleDateString()}
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={order.status}
                     color={getStatusColor(order.status)}
                     size="small"
-                    sx={{ mt: 0.5, borderRadius: 0, fontWeight: 700 }}
+                    sx={{ textTransform: "capitalize" }}
                   />
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Financial Summary */}
-          {hasInvoice && (
-            <Grid item xs={12} md={6}>
-              <Card sx={{ borderRadius: 0, border: `1px solid ${PRIMARY_BLACK}50` }}>
-                <CardContent sx={{ bgcolor: DEEP_GRAY }}>
-                  <Typography variant="h5" gutterBottom sx={{ fontWeight: 800, color: PRIMARY_BLACK, textTransform: 'uppercase', borderBottom: `2px solid ${ACCENT_GOLD}`, pb: 1, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Receipt sx={{ color: ACCENT_GOLD }} /> Financial Summary
-                  </Typography>
-                  <Box sx={{ mb: 1 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>INVOICE ID</Typography>
-                    <Typography sx={{ fontWeight: 500, color: PRIMARY_BLACK }}>
-                      {order.invoice.invoice_number}
+                </TableCell>
+                <TableCell>
+                  {order.items.map((item, index) => (
+                    <Typography key={index} variant="body2">
+                      {item.product_name} x {item.quantity} | {item.weight} kg
                     </Typography>
-                  </Box>
-                  <Box sx={{ mb: 1 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>INVOICE DATE</Typography>
-                    <Typography sx={{ fontWeight: 500, color: PRIMARY_BLACK }}>
-                      {new Date(order.invoice.created_at).toLocaleDateString()}
+                  ))}
+                </TableCell>
+                <TableCell>
+                  {order.invoice_number ? (
+                    <Chip
+                      label={order.invoice_number}
+                      color="success"
+                      size="small"
+                    />
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No Invoice
                     </Typography>
-                  </Box>
-                  <Box sx={{ mt: 3, p: 2, bgcolor: 'white', border: `2px solid ${PRIMARY_BLACK}` }}>
-                    <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>FINAL TRANSACTION VALUE</Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 800, color: PRIMARY_BLACK, display: 'flex', alignItems: 'center' }}>
-                      <Box component="span" sx={{ color: ACCENT_GOLD }}>
-                        ₹{order.invoice.total}
-                      </Box>
-                    </Typography>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          )}
-        </Grid>
-
-        {/* Itemized Cargo List */}
-        <Card sx={{ mt: 6, borderRadius: 0, border: `1px solid ${PRIMARY_BLACK}50` }}>
-          <CardContent>
-            <Typography variant="h5" gutterBottom sx={{ fontWeight: 800, color: PRIMARY_BLACK, textTransform: 'uppercase', borderBottom: `2px solid ${ACCENT_GOLD}`, pb: 1, mb: 2 }}>
-              Itemized Cargo List
-            </Typography>
-            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 0, border: 'none', boxShadow: 'none' }}>
-              <Table>
-                <TableHead sx={{ bgcolor: PRIMARY_BLACK }}>
-                  <TableRow>
-                    <TableCell sx={{ color: ACCENT_GOLD, fontWeight: 700, borderBottom: 'none' }}>Product Name</TableCell>
-                    <TableCell align="center" sx={{ color: ACCENT_GOLD, fontWeight: 700, borderBottom: 'none' }}>Quantity</TableCell>
-                    <TableCell align="center" sx={{ color: ACCENT_GOLD, fontWeight: 700, borderBottom: 'none' }}>Weight (kg)</TableCell>
-                    {hasInvoice && (
-                      <>
-                        <TableCell align="right" sx={{ color: ACCENT_GOLD, fontWeight: 700, borderBottom: 'none' }}>Unit Price (₹)</TableCell>
-                        <TableCell align="right" sx={{ color: ACCENT_GOLD, fontWeight: 700, borderBottom: 'none' }}>Subtotal (₹)</TableCell>
-                      </>
-                    )}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {order.items?.map((item) => {
-                    const invoiceItem = hasInvoice ? order.invoice.items.find(inv => inv.product_id === item.product_id) : item;
-                    const quantity = invoiceItem?.quantity || item.quantity;
-                    const price = invoiceItem?.price || 'N/A';
-                    const weight = invoiceItem?.weight || 'N/A';
-                    const subtotal = getItemTotal(invoiceItem);
-
-                    return (
-                      <TableRow key={item.id} sx={{ '&:nth-of-type(odd)': { backgroundColor: DEEP_GRAY } }}>
-                        <TableCell>
-                          <Typography sx={{ fontWeight: 600, color: PRIMARY_BLACK }}>
-                            {item.product_name}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center">{quantity}</TableCell>
-                        <TableCell align="center">{weight} kg</TableCell>
-                        {hasInvoice && (
-                          <>
-                            <TableCell align="right">₹{price}</TableCell>
-                            <TableCell align="right">₹{subtotal}</TableCell>
-                          </>
-                        )}
-                      </TableRow>
-                    );
-                  })}
-                  {/* Total Row */}
-                  {hasInvoice && (
-                    <TableRow sx={{ bgcolor: PRIMARY_BLACK + '05' }}>
-                      <TableCell colSpan={3}>
-                        <Typography variant="h6" sx={{ fontWeight: 800, color: PRIMARY_BLACK }}>
-                          TOTAL TRANSACTION VALUE
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="h6" sx={{ fontWeight: 800 }} /> {/* empty for unit price total */}
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="h6" sx={{ fontWeight: 800, color: ACCENT_GOLD }}>
-                          ₹{order.invoice.total}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
                   )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </CardContent>
-        </Card>
-      </Container>
-    </>
+                </TableCell>
+                <TableCell>
+                  <Box sx={{ display: "flex", gap: 1 }}>
+                    <Tooltip title="Update Status">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleOpenStatusDialog(order)}
+                      >
+                        <Edit />
+                      </IconButton>
+                    </Tooltip>
+                    {!order.invoice_number && order.status !== "cancelled" && (
+                      <Tooltip title="Create Invoice">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => handleOpenInvoiceDialog(order)}
+                        >
+                          <Receipt />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    <Tooltip title="View Details">
+                      <IconButton
+                        size="small"
+                        color="secondary"
+                        onClick={() =>
+                          navigate(`/admin/orders/${order.order_id}`)
+                        }
+                      >
+                        <Visibility />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {filteredOrders.length === 0 && (
+        <Box sx={{ textAlign: "center", py: 4 }}>
+          <Typography variant="h6" color="text.secondary">
+            No orders found
+          </Typography>
+        </Box>
+      )}
+
+      {/* Status Update Dialog */}
+      <Dialog
+        open={statusDialog}
+        onClose={() => setStatusDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Update Order Status</DialogTitle>
+        <DialogContent>
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Status"
+                  value={statusForm.status}
+                  onChange={(e) =>
+                    setStatusForm({ ...statusForm, status: e.target.value })
+                  }
+                >
+                  <MenuItem value="pending">Pending</MenuItem>
+                  <MenuItem value="confirmed">Confirmed</MenuItem>
+                  <MenuItem value="completed">Completed</MenuItem>
+                  <MenuItem value="cancelled">Cancelled</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12}>
+                <DatePicker
+                  label="Delivery Date"
+                  value={statusForm.delivery_date}
+                  onChange={(newValue) =>
+                    setStatusForm({ ...statusForm, delivery_date: newValue })
+                  }
+                  sx={{ width: "100%" }}
+                />
+              </Grid>
+            </Grid>
+          </LocalizationProvider>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStatusDialog(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleStatusUpdate}>
+            Update Status
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Invoice Creation Dialog */}
+      <Dialog
+        open={invoiceDialog}
+        onClose={() => setInvoiceDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Create Invoice</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Invoice Number"
+                value={invoiceForm.invoice_number}
+                onChange={(e) =>
+                  setInvoiceForm({
+                    ...invoiceForm,
+                    invoice_number: e.target.value,
+                  })
+                }
+                required
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Total Amount"
+                type="number"
+                value={invoiceForm.total}
+                InputProps={{ readOnly: true }}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                Invoice Items
+              </Typography>
+              {invoiceForm.items.map((item, index) => (
+                <Paper key={index} sx={{ p: 2, mb: 2 }}>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={2}>
+                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        {item.product_name}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={2}>
+                      <TextField
+                        fullWidth
+                        label="Quantity"
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) =>
+                          updateInvoiceItem(
+                            index,
+                            "quantity",
+                            parseInt(e.target.value) || 0
+                          )
+                        }
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={2}>
+                      <TextField
+                        fullWidth
+                        label="Weight"
+                        type="number"
+                        value={item.weight}
+                        onChange={(e) =>
+                          updateInvoiceItem(
+                            index,
+                            "weight",
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={2}>
+                      <TextField
+                        fullWidth
+                        label="Price (₹)"
+                        type="number"
+                        step="0.01"
+                        value={item.price}
+                        onChange={(e) =>
+                          updateInvoiceItem(
+                            index,
+                            "price",
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <RadioGroup
+                        row
+                        value={item.calcType}
+                        onChange={(e) => handleCalcTypeChange(index, e.target.value)}
+                      >
+                        <FormControlLabel
+                          value="quantity"
+                          control={<Radio />}
+                          label="Qty"
+                        />
+                        <FormControlLabel
+                          value="weight"
+                          control={<Radio />}
+                          label="Wt"
+                        />
+                      </RadioGroup>
+                    </Grid>
+                    <Grid item xs={12} sm={1}>
+                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        ₹{item.subtotal?.toFixed(2) || "0.00"}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              ))}
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInvoiceDialog(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleInvoiceCreate}
+            disabled={!invoiceForm.invoice_number || invoiceForm.total === 0}
+          >
+            Create Invoice
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
+      </Snackbar>
+    </Box>
   );
 };
 
-export default AdminOrderDetail;
+export default AdminOrders;
