@@ -29,11 +29,11 @@ import {
   Help,
   Logout,
   ChevronLeft,
-  Dashboard as DashboardIcon,
-  ShoppingBasketOutlined,
+  ShoppingBasketOutlined, 
   PersonOutlined,
   LoginOutlined,
-  HowToRegOutlined
+  HowToRegOutlined,
+  HomeOutlined // Icon for Home
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -41,35 +41,42 @@ import logo from './../../logo.png';
 
 const drawerWidth = 260;
 
-// Styled components for a cleaner look
+// --- THEME CUSTOMIZATION ---
+const ACCENT_GOLD = '#BF8A00'; 
+const PRIMARY_BLACK = '#121212'; 
+
 const StyledAppBar = styled(AppBar)(({ theme }) => ({
-  background: theme.palette.background.paper,
-  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-  borderBottom: `1px solid ${theme.palette.divider}`,
+  background: theme.palette.background.paper, 
+  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+  borderBottom: `2px solid ${ACCENT_GOLD}`, 
 }));
 
 const Logo = styled('img')({
   width: 50,
   height: 50,
   marginRight: 12,
+  filter: 'brightness(0.9) contrast(1.1)', 
 });
 
 const DesktopNavLink = styled(Button)(({ theme }) => ({
-  textTransform: 'none',
-  fontWeight: 600,
-  fontSize: '1rem',
-  color: theme.palette.text.primary,
+  textTransform: 'uppercase',
+  fontWeight: 700,
+  fontSize: '0.95rem',
+  color: PRIMARY_BLACK,
+  padding: theme.spacing(1, 1.5),
   '&:hover': {
-    color: theme.palette.primary.main,
+    color: ACCENT_GOLD,
     backgroundColor: 'transparent',
   },
   '&.Mui-selected': {
-    color: theme.palette.primary.main,
-    borderBottom: `2px solid ${theme.palette.primary.main}`,
+    color: ACCENT_GOLD,
+    borderBottom: `2px solid ${ACCENT_GOLD}`,
     borderRadius: 0,
     backgroundColor: 'transparent',
   },
 }));
+// --- END THEME CUSTOMIZATION ---
+
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -98,32 +105,56 @@ const Navbar = () => {
     navigate('/');
     handleMenuClose();
   };
+  
+  const handleDrawerHeaderClick = () => {
+    navigate('/');
+    handleDrawerToggle();
+  };
 
-  const menuItems = isAuthenticated
+  // --- START: Updated menuItems array ---
+  const baseMenuItems = [
+    { text: 'Home', icon: <HomeOutlined />, path: '/' }, // EXPLICIT HOME LINK ADDED
+    { text: 'Products', icon: <Storefront />, path: '/products' },
+  ];
+
+  const authMenuItems = isAuthenticated
     ? [
-      { text: 'Products', icon: <Storefront />, path: '/products' },
       { text: 'Orders', icon: <Receipt />, path: '/orders' },
       { text: 'Inquiries', icon: <Help />, path: '/inquiry' },
-      { text: 'Cart', icon: <ShoppingCart />, path: '/cart', badge: cartCount },
-      { text: 'Profile', icon: <AccountCircle />, path: '/profile' },
+      { text: 'Cart', icon: <ShoppingBasketOutlined />, path: '/cart', badge: cartCount }, 
+      { text: 'Profile', icon: <PersonOutlined />, path: '/profile' }, 
     ]
     : [
-      { text: 'Products', icon: <Storefront />, path: '/products' },
       { text: 'Login', icon: <LoginOutlined />, path: '/login' },
       { text: 'Register', icon: <HowToRegOutlined />, path: '/register' }
     ];
 
+  const menuItems = [...baseMenuItems, ...authMenuItems];
+  // --- END: Updated menuItems array ---
+
   // Drawer for mobile
   const drawer = (
     <Box>
-      <Toolbar sx={{ backgroundColor: 'primary.main', color: 'white' }}>
-        <Logo src={logo} alt="Sivanthi Banana Export Logo" />
-        <Typography variant="h6" sx={{ fontWeight: 700, flexGrow: 1 }}>
-          Sivanthi Banana Export
-        </Typography>
+      {/* Mobile Drawer Header - Sivanthi Banana Export (Corrected) */}
+      <Toolbar sx={{ backgroundColor: PRIMARY_BLACK, color: 'white', padding: 0 }}>
+        <Box 
+            onClick={handleDrawerHeaderClick} // Click navigates to Home (/) and closes drawer
+            sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                flexGrow: 1, 
+                cursor: 'pointer', 
+                paddingLeft: 2 
+            }}
+        >
+            <Logo src={logo} alt="Sivanthi Banana Export Logo" /> 
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              Sivanthi Banana Export
+            </Typography>
+        </Box>
         <IconButton
           onClick={handleDrawerToggle}
-          sx={{ color: 'white' }}
+          sx={{ color: ACCENT_GOLD, marginRight: 1 }}
         >
           <ChevronLeft />
         </IconButton>
@@ -138,18 +169,24 @@ const Navbar = () => {
                 navigate(item.path);
                 handleDrawerToggle();
               }}
-              sx={{ '&.Mui-selected': { bgcolor: 'primary.light', color: 'primary.main' } }}
+              sx={{ '&.Mui-selected': { bgcolor: `${ACCENT_GOLD}20`, color: PRIMARY_BLACK },
+                    '&.Mui-selected .MuiListItemIcon-root': { color: ACCENT_GOLD }
+                }} 
             >
-              <ListItemIcon sx={{ color: location.pathname === item.path ? 'primary.main' : 'text.secondary' }}>
+              <ListItemIcon sx={{ color: location.pathname === item.path ? ACCENT_GOLD : 'text.secondary' }}>
                 {item.badge !== undefined && item.text === 'Cart' ? (
-                  <Badge badgeContent={item.badge} color="primary">
+                  <Badge badgeContent={item.badge} 
+                         sx={{ 
+                            "& .MuiBadge-badge": { backgroundColor: ACCENT_GOLD, color: PRIMARY_BLACK } 
+                         }}
+                  >
                     {item.icon}
                   </Badge>
                 ) : (
                   item.icon
                 )}
               </ListItemIcon>
-              <ListItemText primary={item.text} />
+              <ListItemText primary={item.text} sx={{ fontWeight: 600 }} />
             </ListItemButton>
           </ListItem>
         ))}
@@ -179,64 +216,91 @@ const Navbar = () => {
               display: 'flex',
               alignItems: 'center',
               cursor: 'pointer',
-              mr: { xs: 2, md: 4 }
+              mr: { xs: 1, md: 4 }
             }}
-            onClick={() => navigate(isAuthenticated ? '/product' : '/')}
+            // Desktop logo click handler
+            onClick={() => navigate(isAuthenticated ? '/products' : '/')}
           >
             <Logo src={logo} alt="Sivanthi Banana Export Logo" />
             <Typography
               variant="h6"
               sx={{
                 fontWeight: 700,
-                color: 'primary.main',
-                display: { xs: 'block', sm: 'block' }
+                color: PRIMARY_BLACK,
+                fontSize: { xs: '1rem', sm: '1.25rem' },
+                // Display the full name here for both mobile (small screens) and desktop
+                display: { xs: 'block', sm: 'block' } 
               }}
             >
-              Sivanthi Banana Export
+              SIVANTHI BANANA EXPORT
             </Typography>
           </Box>
           <Box sx={{ flexGrow: 1 }} />
+          
           {isMobile ? (
             <IconButton
               color="inherit"
               edge="end"
               onClick={handleDrawerToggle}
-              sx={{ color: 'text.primary' }}
+              sx={{ color: PRIMARY_BLACK }}
             >
               <MenuIcon />
             </IconButton>
           ) : (
             // Desktop layout with top navbar
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <DesktopNavLink
-                key="home"
-                onClick={() => navigate('/')}
-                className={location.pathname === '/' ? 'Mui-selected' : ''}
-              >
-                Home
-              </DesktopNavLink>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              {/* Render Desktop Navigation Links */}
               {menuItems.map((item) => {
+                // Hide Cart and Profile icon links from the main desktop navigation bar
                 if (item.path === '/cart' || item.path === '/profile') return null;
+                
+                // Handle Home Link separately to use DesktopNavLink style
+                if (item.path === '/') {
+                  return (
+                    <DesktopNavLink
+                      key="home"
+                      onClick={() => navigate('/')}
+                      className={location.pathname === '/' ? 'Mui-selected' : ''}
+                    >
+                      Home
+                    </DesktopNavLink>
+                  );
+                }
+
                 return (
                   <DesktopNavLink
                     key={item.text}
                     onClick={() => navigate(item.path)}
-                    className={location.pathname === item.path ? 'Mui-selected' : ''}
+                    className={location.pathname.startsWith(item.path) && item.path !== '/' ? 'Mui-selected' : ''}
                   >
                     {item.text}
                   </DesktopNavLink>
                 );
               })}
+              
+              {/* Render Auth/Utility Icons */}
               {isAuthenticated && (
                 <>
-                  <IconButton onClick={() => navigate('/cart')} sx={{ color: 'text.primary' }}>
-                    <Badge badgeContent={cartCount} color="primary" showZero>
+                  <IconButton 
+                    onClick={() => navigate('/cart')} 
+                    sx={{ color: PRIMARY_BLACK, '&:hover': { color: ACCENT_GOLD } }}
+                  >
+                    <Badge 
+                      badgeContent={cartCount} 
+                      sx={{ "& .MuiBadge-badge": { backgroundColor: ACCENT_GOLD, color: PRIMARY_BLACK } }}
+                    >
                       <ShoppingCart />
                     </Badge>
                   </IconButton>
-                  <IconButton onClick={handleProfileMenuOpen} sx={{ color: 'text.primary' }}>
+                  
+                  <IconButton 
+                    onClick={handleProfileMenuOpen} 
+                    sx={{ color: PRIMARY_BLACK, '&:hover': { color: ACCENT_GOLD } }}
+                  >
                     <AccountCircle />
                   </IconButton>
+                  
+                  {/* Profile Menu */}
                   <Menu
                     anchorEl={anchorEl}
                     open={Boolean(anchorEl)}
@@ -246,7 +310,7 @@ const Navbar = () => {
                     sx={{ mt: 1 }}
                   >
                     <MenuItem onClick={() => { navigate('/profile'); handleMenuClose(); }}>
-                      <ListItemIcon>
+                      <ListItemIcon sx={{ color: PRIMARY_BLACK }}>
                         <PersonOutlined fontSize="small" />
                       </ListItemIcon>
                       <ListItemText primary="Profile" />
@@ -264,6 +328,7 @@ const Navbar = () => {
           )}
         </Toolbar>
       </StyledAppBar>
+      
       {/* Mobile Drawer */}
       <nav>
         <Drawer
@@ -279,6 +344,7 @@ const Navbar = () => {
           {drawer}
         </Drawer>
       </nav>
+      
       {/* Outlet to render child components */}
       <Box component="main" sx={{ flexGrow: 1, p: 3, mt: { xs: 7, md: 8 } }}>
         <Outlet />
