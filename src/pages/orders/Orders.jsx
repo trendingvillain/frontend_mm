@@ -14,11 +14,12 @@ import {
   ListItemText,
   Divider,
   CircularProgress,
-  useTheme, // Added useTheme to access theme palette for styling
+  useTheme,
 } from '@mui/material';
 import { ShoppingCart, Receipt } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { fetchUserOrders } from '../../config/api';
+import dayjs from 'dayjs'; // <-- ADDED: Import dayjs for reliable formatting
 
 // --- THEME CONSTANTS ---
 const ACCENT_GOLD = '#BF8A00'; 
@@ -31,6 +32,11 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const theme = useTheme();
+
+  // Helper function for DD/MM/YYYY formatting
+  const formatDate = (dateString) => {
+    return dayjs(dateString).format('DD/MM/YYYY');
+  };
 
   useEffect(() => {
     loadOrders();
@@ -68,7 +74,7 @@ const Orders = () => {
     return (
       <Container maxWidth="lg" sx={{ mt: 8, textAlign: 'center' }}>
         <CircularProgress size={60} sx={{ my: 4, color: ACCENT_GOLD }} />
-        <Typography variant="h6" sx={{ color: PRIMARY_BLACK }}>Loading order...</Typography>
+        <Typography variant="h6" sx={{ color: PRIMARY_BLACK }}>Loading order manifest...</Typography>
       </Container>
     );
   }
@@ -103,25 +109,28 @@ const Orders = () => {
   return (
     <Container maxWidth="lg" sx={{ mt: 8, mb: 4 }}>
       <Typography variant="h3" gutterBottom sx={{ fontWeight: 800, color: PRIMARY_BLACK, textTransform: 'uppercase' }}>
-        Client Order 
+        Client Order Manifest
       </Typography>
       <Box sx={{ width: 100, height: 4, bgcolor: ACCENT_GOLD, mb: 4 }} />
 
       <Grid container spacing={4}>
         {orders.map((order) => (
-          <Grid item xs={12} key={order.id}>
+          <Grid item xs={12} md={6} lg={4} key={order.id}>
             <Card 
               sx={{ 
                 borderRadius: 0, 
-                border: `2px solid ${PRIMARY_BLACK}`, // Strong Black Border
+                border: `2px solid ${PRIMARY_BLACK}`,
                 transition: 'box-shadow 0.3s, border-color 0.3s',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
                 '&:hover': { 
                     boxShadow: 8, 
-                    border: `2px solid ${ACCENT_GOLD}` // Gold border on hover
+                    border: `2px solid ${ACCENT_GOLD}`
                 } 
               }}
             >
-              <CardContent>
+              <CardContent sx={{ flexGrow: 1 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="h5" sx={{ fontWeight: 800, color: PRIMARY_BLACK }}>
                     TRANSACTION ID: #{order.id}
@@ -134,13 +143,13 @@ const Orders = () => {
                 </Box>
 
                 <Grid container spacing={3}>
-                  <Grid item xs={12} md={8}>
+                  <Grid item xs={12}>
                     <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: 600, borderBottom: `1px solid ${DEEP_GRAY}`, pb: 1 }}>
                       CARGO CONTENTS
                     </Typography>
                     <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 0, bgcolor: DEEP_GRAY }}>
                       <List dense disablePadding>
-                        {order.items.map((item, index) => (
+                        {order.items.slice(0, 2).map((item, index) => (
                           <React.Fragment key={item.id}>
                             <ListItem sx={{ px: 0 }}>
                               <ListItemText
@@ -152,36 +161,41 @@ const Orders = () => {
                                 secondary={<Typography variant="body2" color="text.secondary">Quantity: {item.quantity} Units</Typography>}
                               />
                             </ListItem>
-                            {index < order.items.length - 1 && <Divider component="li" sx={{ my: 0.5 }} />}
+                            {index < 1 && order.items.length > 1 && <Divider component="li" sx={{ my: 0.5 }} />}
                           </React.Fragment>
                         ))}
+                        {order.items.length > 2 && (
+                             <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'text.secondary' }}>
+                                +{order.items.length - 2} more item(s)
+                            </Typography>
+                        )}
                       </List>
                     </Paper>
                   </Grid>
 
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12}>
                     <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: 600, borderBottom: `1px solid ${DEEP_GRAY}`, pb: 1 }}>
                       LOGISTICS DATA
                     </Typography>
-                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 0, bgcolor: DEEP_GRAY }}>
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 0, bgcolor: DEEP_GRAY, flexGrow: 1 }}>
                       
                       {/* Delivery Date */}
                       <Box sx={{ mb: 2, borderBottom: '1px dashed #CCC' }}>
                         <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase' }}>
-                          Target Delivery
+                          Delivery Date
                         </Typography>
                         <Typography sx={{ fontWeight: 700, color: ACCENT_GOLD }}>
-                          {new Date(order.delivery_date).toLocaleDateString()}
+                          {formatDate(order.delivery_date)} {/* <-- USING NEW FORMATTER */}
                         </Typography>
                       </Box>
                       
                       {/* Order Date */}
                       <Box sx={{ mb: 2, borderBottom: '1px dashed #CCC' }}>
                         <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase' }}>
-                          Initiation Date
+                          Order Date
                         </Typography>
                         <Typography sx={{ fontWeight: 500 }}>
-                          {new Date(order.created_at).toLocaleDateString()}
+                          {formatDate(order.created_at)} {/* <-- USING NEW FORMATTER */}
                         </Typography>
                       </Box>
                       
@@ -200,7 +214,7 @@ const Orders = () => {
                         variant="outlined"
                         size="small"
                         startIcon={<Receipt />}
-                        onClick={() => navigate(`/orders/${order.order_code}`)} // Assuming order.id is used for detail page
+                        onClick={() => navigate(`/orders/${order.id}`)}
                         fullWidth
                         disabled={['pending', 'confirmed', 'cancelled'].includes(order.status)}
                         sx={{
