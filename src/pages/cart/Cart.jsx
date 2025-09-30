@@ -66,7 +66,7 @@ const Cart = () => {
     setIsLoading(true); // <-- Set loading to true
     try {
       const orderData = {
-        delivery_date: deliveryDate.format('YYYY-MM-DD'),
+        delivery_date: deliveryDate.format('DD/MM/YYYY'),
         products: cartItems.map(item => ({
           product_id: item.product_id,
           quantity: item.quantity
@@ -279,6 +279,7 @@ const Cart = () => {
               value={deliveryDate}
               onChange={(newValue) => setDeliveryDate(newValue)}
               minDate={dayjs().add(1, 'day')}
+              format="DD/MM/YYYY" 
               sx={{ width: '100%', mb: 3 }}
             />
           </LocalizationProvider>
