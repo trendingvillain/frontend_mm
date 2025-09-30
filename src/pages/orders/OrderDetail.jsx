@@ -22,14 +22,14 @@ import { ArrowBack, Receipt, Download } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchOrderById } from '../../config/api';
 import logo from './../../logo.png';
+import dayjs from 'dayjs';
 
-// --- THEME CONSTANTS ---
-const ACCENT_GOLD = '#BF8A00';
-const PRIMARY_BLACK = '#121212';
-const DEEP_GRAY = '#F5F5F5';
-// --- END THEME CONSTANTS ---
+// --- Theme Constants ---
+const ACCENT = '#BF8A00';
+const BLACK = '#121212';
+const GRAY = '#F5F5F5';
 
-// Print styles for hiding non-print content and showing minimal header
+// Print styles for printing with minimal header
 const PrintStyles = () => (
   <style>{`
     @media print {
@@ -40,7 +40,7 @@ const PrintStyles = () => (
         display: flex !important;
         align-items: center;
         justify-content: flex-start;
-        border-bottom: 2px solid ${ACCENT_GOLD};
+        border-bottom: 2px solid ${ACCENT};
         padding: 10px 20px;
         position: fixed;
         top: 0;
@@ -63,63 +63,49 @@ const OrderDetail = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const loadOrder = async () => {
+      try {
+        const response = await fetchOrderById(id);
+        if (response.data.success) setOrder(response.data.order);
+        else setOrder(null);
+      } catch (error) {
+        console.error('Error fetching order:', error);
+        setOrder(null);
+      } finally {
+        setLoading(false);
+      }
+    };
     loadOrder();
   }, [id]);
 
-  const loadOrder = async () => {
-    try {
-      const response = await fetchOrderById(id);
-      if (response.data.success) {
-        setOrder(response.data.order);
-      }
-    } catch (error) {
-      console.error('Error loading order:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed':
-        return 'success';
-      case 'confirmed':
-        return 'info';
-      case 'pending':
-        return 'warning';
-      case 'cancelled':
-        return 'error';
-      default:
-        return 'default';
+      case 'completed': return 'success';
+      case 'confirmed': return 'info';
+      case 'pending': return 'warning';
+      case 'cancelled': return 'error';
+      default: return 'default';
     }
   };
 
-  // Updated helper to calculate item total based on calcType
   const getItemTotal = (item) => {
     const price = Number(item.price) || 0;
     const quantity = Number(item.quantity) || 0;
     const weight = Number(item.weight) || 0;
     const calcType = item.calcType || 'quantity';
-
-    if (calcType === 'weight') {
-      return (price * weight).toFixed(2);
-    } else {
-      return (price * quantity).toFixed(2);
-    }
+    if (calcType === 'weight') return (price * weight).toFixed(2);
+    return (price * quantity).toFixed(2);
   };
 
-  // New function: Triggers browser print dialog for "downloading" the page
-  const handleDownloadPage = () => {
+  const handlePrint = () => {
     window.print();
   };
 
   if (loading) {
     return (
       <Container maxWidth="lg" sx={{ mt: 8, textAlign: 'center' }}>
-        <CircularProgress size={60} sx={{ my: 4, color: ACCENT_GOLD }} />
-        <Typography variant="h6" sx={{ color: PRIMARY_BLACK }}>
-          Loading order manifest...
-        </Typography>
+        <CircularProgress size={60} sx={{ mt: 4, color: ACCENT }} />
+        <Typography sx={{ mt: 2 }}>Loading order details...</Typography>
       </Container>
     );
   }
@@ -127,17 +113,8 @@ const OrderDetail = () => {
   if (!order) {
     return (
       <Container maxWidth="lg" sx={{ mt: 8, textAlign: 'center' }}>
-        <Typography variant="h6" color="error" sx={{ borderRadius: 0 }}>
-          Order not found. Invalid Transaction ID.
-        </Typography>
-        <Button
-          startIcon={<ArrowBack />}
-          onClick={() => navigate('/orders')}
-          sx={{ mt: 2, borderRadius: 0, color: PRIMARY_BLACK, borderColor: PRIMARY_BLACK }}
-          variant="outlined"
-        >
-          Back to Manifest
-        </Button>
+        <Typography variant="h6" color="error">Order not found.</Typography>
+        <Button variant="contained" sx={{ mt: 4 }} onClick={() => navigate('/orders')}>Back to Orders</Button>
       </Container>
     );
   }
@@ -146,153 +123,68 @@ const OrderDetail = () => {
 
   return (
     <>
-      {/* Inject print styles */}
       <PrintStyles />
-
-      {/* The minimal print header with logo and name, hidden by default but shown in print */}
-      <Box
-        id="print-header"
-        sx={{
-          display: 'none',
-          mb: 4,
-          px: 2,
-          py: 1,
-          bgcolor: 'white',
-          borderBottom: `2px solid ${ACCENT_GOLD}`,
-        }}
-      >
+      <Box id="print-header" sx={{ display: 'none', p: 2, borderBottom: `2px solid ${ACCENT}`, bgcolor: 'white' }}>
         <img src={logo} alt="Logo" style={{ height: 40, marginRight: 12 }} />
-        <Typography variant="h6" sx={{ fontWeight: 'bold', color: PRIMARY_BLACK }}>
-          Sivanthi Banana Export
-        </Typography>
+        <Typography variant="h6" sx={{ fontWeight: 'bold', color: BLACK }}>Sivanthi Banana Export</Typography>
       </Box>
 
       <Container maxWidth="lg" sx={{ mt: 8, mb: 4 }}>
-        {/* Header and Actions */}
-        <Box
-          sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}
-        >
-          <Typography variant="h4" sx={{ fontWeight: 800, color: PRIMARY_BLACK, textTransform: 'uppercase' }}>
-            Transaction Log: #{order.id}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            {/* Download button hidden in print by no-print class */}
-            {hasInvoice && (
-              <Button
-                className="no-print"
-                startIcon={<Download />}
-                onClick={handleDownloadPage}
-                sx={{
-                  borderRadius: 0,
-                  bgcolor: ACCENT_GOLD,
-                  color: PRIMARY_BLACK,
-                  fontWeight: 700,
-                  '&:hover': { bgcolor: PRIMARY_BLACK, color: ACCENT_GOLD },
-                }}
-                variant="contained"
-              >
-                Download Transaction Log
-              </Button>
-            )}
-          </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', mb: 4 }}>
+          <Typography variant="h4" sx={{ fontWeight: 'bold', color: BLACK, textTransform: 'uppercase' }}>Transaction Log: #{order.id}</Typography>
+          {hasInvoice && (
+            <Button 
+              variant="contained" 
+              startIcon={<Download />}
+              onClick={handlePrint}
+              sx={{ bgcolor: ACCENT, color: BLACK, fontWeight: 'bold', borderRadius: 0, '&:hover': { bgcolor: BLACK, color: ACCENT } }}
+              className="no-print"
+            >
+              Download Log
+            </Button>
+          )}
         </Box>
 
         <Grid container spacing={4}>
-          {/* Order Information (Left) */}
           <Grid item xs={12} md={6}>
-            <Card sx={{ borderRadius: 0, border: `1px solid ${PRIMARY_BLACK}50` }}>
-              <CardContent sx={{ bgcolor: DEEP_GRAY }}>
-                <Typography
-                  variant="h5"
-                  gutterBottom
-                  sx={{ fontWeight: 800, color: PRIMARY_BLACK, textTransform: 'uppercase', borderBottom: `2px solid ${ACCENT_GOLD}`, pb: 1, mb: 2 }}
-                >
+            <Card sx={{ bgcolor: GRAY, border: `1px solid ${BLACK}50`, borderRadius: 0 }}>
+              <CardContent>
+                <Typography variant="h5" sx={{ fontWeight: 'bold', textTransform: 'uppercase', borderBottom: `2px solid ${ACCENT}`, mb: 2 }}>
                   Logistics Summary
                 </Typography>
-
-                {/* Order Date */}
-                <Box sx={{ mb: 1 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                    INITIATION DATE
-                  </Typography>
-                  <Typography sx={{ fontWeight: 500, color: PRIMARY_BLACK }}>{new Date(order.created_at).toLocaleDateString()}</Typography>
-                </Box>
-
-                {/* Delivery Date */}
-                <Box sx={{ mb: 1 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                    TARGET DELIVERY
-                  </Typography>
-                  <Typography sx={{ fontWeight: 700, color: ACCENT_GOLD }}>{new Date(order.delivery_date).toLocaleDateString()}</Typography>
-                </Box>
-
-                {/* Customer */}
-                <Box sx={{ mb: 1 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                    CLIENT NAME
-                  </Typography>
-                  <Typography sx={{ fontWeight: 500, color: PRIMARY_BLACK }}>{order.user_name || 'N/A'}</Typography>
-                </Box>
-
-                {/* Status */}
-                <Box sx={{ pt: 2, mt: 2, borderTop: `1px dashed ${PRIMARY_BLACK}30` }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mr: 1 }}>
-                    STATUS:
-                  </Typography>
-                  <Chip label={order.status.toUpperCase()} color={getStatusColor(order.status)} size="small" sx={{ mt: 0.5, borderRadius: 0, fontWeight: 700 }} />
+                <Typography variant="body2" color="textSecondary">
+                  <strong>Initiated:</strong> {dayjs(order.created_at).format('DD/MM/YYYY')}
+                </Typography>
+                <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                  <strong>Delivery Target:</strong> {dayjs(order.delivery_date).format('DD/MM/YYYY')}
+                </Typography>
+                <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                  <strong>Client Name:</strong> {order.user_name ?? 'N/A'}
+                </Typography>
+                <Box sx={{ mt: 2, pt: 2, borderTop: `1px dashed ${BLACK}30` }}>
+                  <Chip label={order.status.toUpperCase()} color={getStatusColor(order.status)} size="small" sx={{ fontWeight: 'bold' }} />
                 </Box>
               </CardContent>
             </Card>
           </Grid>
 
-          {/* Invoice Information (Right) */}
           {hasInvoice && (
             <Grid item xs={12} md={6}>
-              <Card sx={{ borderRadius: 0, border: `1px solid ${PRIMARY_BLACK}50` }}>
-                <CardContent sx={{ bgcolor: DEEP_GRAY }}>
-                  <Typography
-                    variant="h5"
-                    gutterBottom
-                    sx={{
-                      fontWeight: 800,
-                      color: PRIMARY_BLACK,
-                      textTransform: 'uppercase',
-                      borderBottom: `2px solid ${ACCENT_GOLD}`,
-                      pb: 1,
-                      mb: 2,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                    }}
-                  >
-                    <Receipt sx={{ color: ACCENT_GOLD }} /> Financial Summary
+              <Card sx={{ bgcolor: GRAY, border: `1px solid ${BLACK}50`, borderRadius: 0 }}>
+                <CardContent>
+                  <Typography variant="h5" sx={{ fontWeight: 'bold', textTransform: 'uppercase', borderBottom: `2px solid ${ACCENT}`, mb: 2, display: 'flex', alignItems: 'center' }}>
+                    <Receipt sx={{ mr: 1, color: ACCENT }} /> Financial Summary
                   </Typography>
-
-                  {/* Invoice Number */}
-                  <Box sx={{ mb: 1 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                      INVOICE ID
-                    </Typography>
-                    <Typography sx={{ fontWeight: 500, color: PRIMARY_BLACK }}>{order.invoice.invoice_number}</Typography>
-                  </Box>
-
-                  {/* Invoice Date */}
-                  <Box sx={{ mb: 1 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                      INVOICE DATE
-                    </Typography>
-                    <Typography sx={{ fontWeight: 500, color: PRIMARY_BLACK }}>{new Date(order.invoice.created_at).toLocaleDateString()}</Typography>
-                  </Box>
-
-                  {/* Total Amount */}
-                  <Box sx={{ mt: 3, p: 2, bgcolor: 'white', border: `2px solid ${PRIMARY_BLACK}` }}>
-                    <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
-                      FINAL TRANSACTION VALUE
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 800, color: PRIMARY_BLACK, display: 'flex', alignItems: 'center' }}>
-                      <Box component="span" sx={{ color: ACCENT_GOLD }}>
-                        ₹{order.invoice.total}
-                      </Box>
+                  <Typography variant="body2" color="textSecondary">
+                    <strong>Invoice ID:</strong> {order.invoice.invoice_number}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                    <strong>Invoice Date:</strong> {dayjs(order.invoice.created_at).format('DD/MM/YYYY')}
+                  </Typography>
+                  <Box sx={{ mt: 3, p: 2, bgcolor: 'white', border: `2px solid ${BLACK}` }}>
+                    <Typography variant="h6" color="textSecondary">Final Value</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: BLACK }}>
+                      ₹{order.invoice.total}
                     </Typography>
                   </Box>
                 </CardContent>
@@ -301,74 +193,50 @@ const OrderDetail = () => {
           )}
         </Grid>
 
-        {/* Order Items Table */}
-        <Card sx={{ mt: 6, borderRadius: 0, border: `1px solid ${PRIMARY_BLACK}50` }}>
+        <Card sx={{ mt: 6, borderRadius: 0, border: `1px solid ${BLACK}50` }}>
           <CardContent>
-            <Typography
-              variant="h5"
-              gutterBottom
-              sx={{ fontWeight: 800, color: PRIMARY_BLACK, textTransform: 'uppercase', borderBottom: `2px solid ${ACCENT_GOLD}`, pb: 1, mb: 2 }}
-            >
+            <Typography variant="h5" sx={{ fontWeight: 'bold', textTransform: 'uppercase', borderBottom: `2px solid ${ACCENT}`, mb: 2 }}>
               Itemized Cargo List
             </Typography>
-
-            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 0, border: 'none', boxShadow: 'none' }}>
+            <TableContainer component={Paper} sx={{ borderRadius: 0, boxShadow: 'none' }}>
               <Table>
-                <TableHead sx={{ bgcolor: PRIMARY_BLACK }}>
+                <TableHead sx={{ bgcolor: BLACK }}>
                   <TableRow>
-                    <TableCell sx={{ color: ACCENT_GOLD, fontWeight: 700, borderBottom: 'none' }}>Product Name</TableCell>
-                    <TableCell align="center" sx={{ color: ACCENT_GOLD, fontWeight: 700, borderBottom: 'none' }}>
-                      Quantity
-                    </TableCell>
-                    <TableCell align="center" sx={{ color: ACCENT_GOLD, fontWeight: 700, borderBottom: 'none' }}>
-                      Weight (kg)
-                    </TableCell>
-                    {hasInvoice && (
-                      <>
-                        <TableCell align="right" sx={{ color: ACCENT_GOLD, fontWeight: 700, borderBottom: 'none' }}>
-                          Unit Price (₹)
-                        </TableCell>
-                        <TableCell align="right" sx={{ color: ACCENT_GOLD, fontWeight: 700, borderBottom: 'none' }}>
-                          Subtotal (₹)
-                        </TableCell>
-                      </>
-                    )}
+                    <TableCell sx={{ color: ACCENT, fontWeight: 'bold' }}>Product Name</TableCell>
+                    <TableCell sx={{ color: ACCENT, fontWeight: 'bold' }} align="center">Quantity</TableCell>
+                    <TableCell sx={{ color: ACCENT, fontWeight: 'bold' }} align="center">Weight (kg)</TableCell>
+                    {hasInvoice && <>
+                      <TableCell sx={{ color: ACCENT, fontWeight: 'bold' }} align="right">Unit Price (₹)</TableCell>
+                      <TableCell sx={{ color: ACCENT, fontWeight: 'bold' }} align="right">Subtotal (₹)</TableCell>
+                    </>}
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {order.items?.map((item) => {
-                    const invoiceItem = hasInvoice ? order.invoice.items.find((inv) => inv.product_id === item.product_id) : item;
-                    const quantity = invoiceItem?.quantity || item.quantity;
-                    const price = invoiceItem?.price || 'N/A';
-                    const weight = invoiceItem?.weight || 'N/A';
+                  {order.items.map(item => {
+                    const invoiceItem = hasInvoice ? order.invoice.items.find(i => i.product_id === item.product_id) : item;
                     const subtotal = getItemTotal(invoiceItem);
 
                     return (
-                      <TableRow key={item.id} sx={{ '&:nth-of-type(odd)': { backgroundColor: DEEP_GRAY } }}>
-                        <TableCell>
-                          <Typography sx={{ fontWeight: 600, color: PRIMARY_BLACK }}>{item.product_name}</Typography>
-                        </TableCell>
-                        <TableCell align="center">{quantity}</TableCell>
-                        <TableCell align="center">{weight} kg</TableCell>
-                        {hasInvoice && (
-                          <>
-                            <TableCell align="right">₹{price}</TableCell>
-                            <TableCell align="right">₹{subtotal}</TableCell>
-                          </>
-                        )}
+                      <TableRow key={item.id} sx={{ '&:nth-of-type(odd)': { backgroundColor: GRAY } }}>
+                        <TableCell>{item.product_name}</TableCell>
+                        <TableCell align="center">{invoiceItem?.quantity ?? item.quantity}</TableCell>
+                        <TableCell align="center">{invoiceItem?.weight ?? item.weight} kg</TableCell>
+                        {hasInvoice && <>
+                          <TableCell align="right">{invoiceItem?.price ?? 'N/A'}</TableCell>
+                          <TableCell align="right">{subtotal}</TableCell>
+                        </>}
                       </TableRow>
                     );
                   })}
-                  {/* Total Row */}
                   {hasInvoice && (
-                    <TableRow sx={{ bgcolor: PRIMARY_BLACK + '05' }}>
-                      <TableCell colSpan={hasInvoice ? 4 : 3}>
-                        <Typography variant="h6" sx={{ fontWeight: 800, color: PRIMARY_BLACK }}>
+                    <TableRow sx={{ bgcolor: `${BLACK}05` }}>
+                      <TableCell colSpan={ hasInvoice ? 4 : 3 }>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: BLACK }}>
                           TOTAL TRANSACTION VALUE
                         </Typography>
                       </TableCell>
                       <TableCell align="right">
-                        <Typography variant="h6" sx={{ fontWeight: 800, color: ACCENT_GOLD }}>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: ACCENT }}>
                           ₹{order.invoice.total}
                         </Typography>
                       </TableCell>
