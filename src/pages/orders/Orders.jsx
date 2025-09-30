@@ -115,7 +115,7 @@ const Orders = () => {
 
       <Grid container spacing={4}>
         {orders.map((order) => (
-          <Grid item xs={12} md={6} lg={4} key={order.order_code}>
+          <Grid item xs={12} md={6} lg={4} key={order.id}>
             <Card 
               sx={{ 
                 borderRadius: 0, 
@@ -214,7 +214,7 @@ const Orders = () => {
                         variant="outlined"
                         size="small"
                         startIcon={<Receipt />}
-                        onClick={() => navigate(`/orders/${order.id}`)}
+                        onClick={() => navigate(`/orders/${order.order_code}`)}
                         fullWidth
                         disabled={['pending', 'confirmed', 'cancelled'].includes(order.status)}
                         sx={{
