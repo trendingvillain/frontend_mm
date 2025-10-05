@@ -17,7 +17,8 @@ import {
   DialogActions,
   Snackbar,
   Alert,
-  CircularProgress // <-- Import CircularProgress
+  CircularProgress,
+  TextField,
 } from '@mui/material';
 import { Add, Remove, Delete, ShoppingCart, CalendarToday } from '@mui/icons-material';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -33,7 +34,7 @@ const Cart = () => {
   const [orderDialog, setOrderDialog] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState(dayjs().add(1, 'day'));
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-  const [isLoading, setIsLoading] = useState(false); // <-- New loading state
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const cart = JSON.parse(localStorage.getItem('cart') || '[]');
@@ -63,38 +64,47 @@ const Cart = () => {
   };
 
   const handleConfirmOrder = async () => {
-    setIsLoading(true); // <-- Set loading to true
+    // Basic validation check
+    if (!deliveryDate || deliveryDate.isBefore(dayjs())) {
+        setSnackbar({ open: true, message: 'Please select a valid delivery date.', severity: 'warning' });
+        return;
+    }
+      
+    setIsLoading(true);
     try {
       const orderData = {
-        delivery_date: deliveryDate.format('DD/MM/YYYY'),
-        products: cartItems.map(item => ({
-          product_id: item.product_id,
-          quantity: item.quantity
-        }))
-      };
+  delivery_date: deliveryDate.format('YYYY-MM-DD'),  // ✅ ISO format
+  products: cartItems.map(item => ({
+    product_id: item.product_id,
+    quantity: item.quantity
+  }))
+};
+
 
       const response = await createOrder(orderData);
 
-      if (response.data.success) {
+      if (response.data && response.data.success) {
         localStorage.removeItem('cart');
         setCartItems([]);
         setSnackbar({
           open: true,
-          message: 'Order placed successfully!',
+          message: 'Order placed successfully! Redirecting to orders...',
           severity: 'success'
         });
         setOrderDialog(false);
-        setTimeout(() => navigate('/orders'), 2000);
+        setTimeout(() => navigate('/orders'), 1500);
+      } else {
+         throw new Error(response.data.message || "Order placement failed.");
       }
     } catch (error) {
-      console.error('Error placing order:', error); // Log the error for debugging
+      console.error('Error placing order:', error);
       setSnackbar({
         open: true,
-        message: 'Error placing order. Please try again.',
+        message: error.message || 'Error placing order. Please try again.',
         severity: 'error'
       });
     } finally {
-      setIsLoading(false); // <-- Set loading to false, regardless of success or failure
+      setIsLoading(false);
     }
   };
 
@@ -102,10 +112,10 @@ const Cart = () => {
     return (
       <Container maxWidth="md" sx={{ mt: 4, textAlign: 'center', py: 8 }}>
         <ShoppingCart sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
-        <Typography variant="h4" gutterBottom component="div">
+        <Typography variant="h4" gutterBottom>
           Your Cart is Empty
         </Typography>
-        <Typography variant="body1" color="text.secondary" paragraph component="div">
+        <Typography variant="body1" color="text.secondary" paragraph>
           Add some products to your cart to get started!
         </Typography>
         <Button variant="contained" onClick={() => navigate('/products')}>
@@ -117,7 +127,7 @@ const Cart = () => {
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h3" gutterBottom sx={{ fontWeight: 600 }} component="div">
+      <Typography variant="h3" gutterBottom sx={{ fontWeight: 600 }}>
         Shopping Cart
       </Typography>
 
@@ -147,38 +157,35 @@ const Cart = () => {
                     </Box>
                     <ListItemText
                       primary={
-                        <Typography variant="h6" sx={{ fontWeight: 600 }} component="div">
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
                           {item.product_name}
                         </Typography>
                       }
                       secondary={
                         <Box>
-                          <Typography variant="body2" color="text.secondary" component="div">
+                          <Typography variant="body2" color="text.secondary">
                             Price: ₹{item.price}
                           </Typography>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
                             <IconButton
                               size="small"
                               onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
+                              disabled={item.quantity <= 1}
                             >
                               <Remove />
                             </IconButton>
 
-                            <input
+                            <TextField
                               type="number"
-                              min={1}
+                              size="small"
+                              variant="outlined"
+                              sx={{ width: 60, input: { textAlign: 'center' } }}
                               value={item.quantity}
                               onChange={(e) => {
                                 const value = parseInt(e.target.value, 10);
                                 if (!isNaN(value) && value > 0) updateQuantity(item.product_id, value);
                               }}
-                              style={{
-                                width: 40,
-                                textAlign: 'center',
-                                border: '1px solid #ccc',
-                                borderRadius: 4,
-                                padding: '2px 4px',
-                              }}
+                              inputProps={{ min: 1 }}
                             />
 
                             <IconButton
@@ -194,7 +201,7 @@ const Cart = () => {
                     />
                     <ListItemSecondaryAction>
                       <Box sx={{ textAlign: 'right' }}>
-                        <Typography variant="h6" sx={{ fontWeight: 600 }} component="div">
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
                           ₹{(parseFloat(item.price) * item.quantity).toFixed(2)}
                         </Typography>
                         <IconButton
@@ -217,27 +224,27 @@ const Cart = () => {
         {/* Order Summary */}
         <Box flex={1}>
           <Paper sx={{ p: 3, position: { xs: 'static', md: 'sticky' }, top: 100 }}>
-            <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }} component="div">
+            <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
               Order Summary
             </Typography>
 
             <Box sx={{ my: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography component="div">Items ({cartItems.length})</Typography>
-                <Typography component="div">₹{getTotalAmount().toFixed(2)}</Typography>
+                <Typography>Items ({cartItems.length})</Typography>
+                <Typography>₹{getTotalAmount().toFixed(2)}</Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography component="div">Delivery</Typography>
-                <Typography color="success.main" component="div">
+                <Typography>Delivery</Typography>
+                <Typography color="success.main">
                   Your Transport
                 </Typography>
               </Box>
               <Divider sx={{ my: 2 }} />
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600 }} component="div">
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   Total
                 </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 600 }} component="div">
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   ₹{getTotalAmount().toFixed(2)}
                 </Typography>
               </Box>
@@ -249,6 +256,7 @@ const Cart = () => {
               size="large"
               startIcon={<CalendarToday />}
               onClick={() => setOrderDialog(true)}
+              disabled={cartItems.length === 0} 
             >
               Place Order
             </Button>
@@ -269,7 +277,7 @@ const Cart = () => {
       <Dialog open={orderDialog} onClose={() => setOrderDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Confirm Your Order</DialogTitle>
         <DialogContent>
-          <Typography variant="body1" paragraph component="div">
+          <Typography variant="body1" paragraph>
             Please select your preferred delivery date:
           </Typography>
 
@@ -281,10 +289,16 @@ const Cart = () => {
               minDate={dayjs().add(1, 'day')}
               format="DD/MM/YYYY" 
               sx={{ width: '100%', mb: 3 }}
+              slotProps={{
+                textField: {
+                    helperText: deliveryDate && deliveryDate.isBefore(dayjs()) ? 'Date must be tomorrow or later' : '',
+                    error: deliveryDate && deliveryDate.isBefore(dayjs()),
+                }
+              }}
             />
           </LocalizationProvider>
 
-          <Typography variant="h6" gutterBottom component="div">
+          <Typography variant="h6" gutterBottom>
             Order Items:
           </Typography>
           {cartItems.map((item) => (
@@ -292,10 +306,10 @@ const Cart = () => {
               key={item.product_id}
               sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}
             >
-              <Typography component="div">
+              <Typography>
                 {item.product_name} x {item.quantity}
               </Typography>
-              <Typography component="div">
+              <Typography>
                 ₹{(parseFloat(item.price) * item.quantity).toFixed(2)}
               </Typography>
             </Box>
@@ -303,10 +317,10 @@ const Cart = () => {
 
           <Divider sx={{ my: 2 }} />
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }} component="div">
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
               Total:
             </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 600 }} component="div">
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
               ₹{getTotalAmount().toFixed(2)}
             </Typography>
           </Box>
@@ -318,7 +332,7 @@ const Cart = () => {
           <Button
             variant="contained"
             onClick={handleConfirmOrder}
-            disabled={isLoading} // <-- Disable button when loading
+            disabled={isLoading || !deliveryDate || deliveryDate.isBefore(dayjs())}
             startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : null}
           >
             {isLoading ? 'Placing Order...' : 'Confirm Order'}
@@ -330,10 +344,12 @@ const Cart = () => {
         open={snackbar.open}
         autoHideDuration={4000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert
           severity={snackbar.severity}
           onClose={() => setSnackbar({ ...snackbar, open: false })}
+          sx={{ width: '100%' }}
         >
           {snackbar.message}
         </Alert>
