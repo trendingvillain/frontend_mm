@@ -132,17 +132,6 @@ const OrderDetail = () => {
       <Container maxWidth="lg" sx={{ mt: 8, mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', mb: 4 }}>
           <Typography variant="h4" sx={{ fontWeight: 'bold', color: BLACK, textTransform: 'uppercase' }}>Transaction Log: #{order.id}</Typography>
-          {hasInvoice && (
-            <Button 
-              variant="contained" 
-              startIcon={<Download />}
-              onClick={handlePrint}
-              sx={{ bgcolor: ACCENT, color: BLACK, fontWeight: 'bold', borderRadius: 0, '&:hover': { bgcolor: BLACK, color: ACCENT } }}
-              className="no-print"
-            >
-              Download Log
-            </Button>
-          )}
         </Box>
 
         <Grid container spacing={4}>
