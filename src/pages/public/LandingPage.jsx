@@ -348,8 +348,6 @@ const LandingPage = ({ isAuthenticated }) => {
              <h4 className="text-lg sm:text-xl font-bold mb-4 sm:mb-5 text-amber-600">QUICK LINKS</h4>
              <ul className="space-y-2 text-gray-300 text-sm sm:text-base">
                 <li><a href="#contact" className="hover:text-amber-600 transition-colors">Get a Quote</a></li>
-                <li><a href="/about" className="hover:text-amber-600 transition-colors">About Us</a></li>
-                <li><a href="/faq" className="hover:text-amber-600 transition-colors">Common Questions Answered</a></li>
             </ul>
           </div>
         </div>
