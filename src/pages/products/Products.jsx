@@ -385,9 +385,9 @@ const Products = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header Section */}
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-black text-gray-900 uppercase mb-4">
+          <h3 className="text-5xl font-black text-gray-900 uppercase mb-4">
             THE OFFICIAL EXPORT CATALOGUE
-          </h1>
+          </h3>
           <div className="w-32 h-1 bg-yellow-600 mx-auto mb-6"></div>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
             Sivanthi offers certified, high-grade banana varieties. Review specifications and initiate procurement.
