@@ -142,7 +142,7 @@ const SearchAndFilter = ({ searchTerm, setSearchTerm, productTypes, selectedFilt
         <input
           type="text"
           className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:border-yellow-600 focus:ring-2 focus:ring-yellow-600 focus:ring-opacity-20 transition-all duration-200"
-          placeholder="SEARCH PRODUCT ID / VARIETY..."
+          placeholder="Search Product..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
